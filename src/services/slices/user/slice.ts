@@ -25,6 +25,7 @@ const initialState: TUserState = {
   error: null
 };
 
+// Регистрация
 export const register = createAsyncThunk(
   'user/register',
   async (data: TRegisterData) => {
@@ -35,6 +36,7 @@ export const register = createAsyncThunk(
   }
 );
 
+// Вход
 export const login = createAsyncThunk(
   'user/login',
   async (data: TLoginData) => {
@@ -45,20 +47,37 @@ export const login = createAsyncThunk(
   }
 );
 
+// Выход
 export const logout = createAsyncThunk('user/logout', async () => {
   await logoutApi();
   deleteCookie('accessToken');
   localStorage.removeItem('refreshToken');
 });
 
-export const checkUserAuth = createAsyncThunk('user/checkAuth', async () => {
-  if (getCookie('accessToken')) {
-    const response = await getUserApi();
-    return response.user;
-  }
-  return null;
-});
+// Проверка авторизации (ИСПРАВЛЕННАЯ)
+export const checkUserAuth = createAsyncThunk(
+  'user/checkAuth',
+  async (_, { rejectWithValue }) => {
+    const accessToken = getCookie('accessToken');
 
+    // Если нет токена, сразу возвращаем null
+    if (!accessToken) {
+      return null;
+    }
+
+    try {
+      const response = await getUserApi();
+      return response.user;
+    } catch (error: any) {
+      // Если токен невалидный, очищаем куки
+      deleteCookie('accessToken');
+      localStorage.removeItem('refreshToken');
+      return null;
+    }
+  }
+);
+
+// Обновление данных пользователя
 export const updateUser = createAsyncThunk(
   'user/update',
   async (data: Partial<TRegisterData>) => {
@@ -106,9 +125,17 @@ const userSlice = createSlice({
         state.error = action.error.message || 'Ошибка входа';
       })
       // Выход
+      .addCase(logout.pending, (state) => {
+        state.loading = true;
+      })
       .addCase(logout.fulfilled, (state) => {
+        state.loading = false;
         state.user = null;
-        state.isAuthChecked = false;
+        state.isAuthChecked = true;
+      })
+      .addCase(logout.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Ошибка выхода';
       })
       // Проверка авторизации
       .addCase(checkUserAuth.pending, (state) => {

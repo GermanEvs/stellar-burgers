@@ -35,12 +35,23 @@ export const BurgerConstructor: FC = () => {
       constructorItems.bun._id
     ];
 
-    dispatch(createOrder(ingredientsIds));
+    // Отправляем заказ и чистим конструктор только после успеха
+    dispatch(createOrder(ingredientsIds))
+      .unwrap()
+      .then(() => {
+        // УСПЕШНЫЙ ОТВЕТ ОТ СЕРВЕРА → очищаем конструктор
+        dispatch(clearConstructor());
+      })
+      .catch((error: any) => {
+        console.error('Ошибка создания заказа:', error);
+        // Если ошибка - конструктор НЕ очищаем
+      });
   };
 
+  // При закрытии модалки очищаем только данные заказа
   const closeOrderModal = () => {
     dispatch(clearOrder());
-    dispatch(clearConstructor());
+    // НЕ очищаем конструктор здесь!
   };
 
   const price = useMemo(
