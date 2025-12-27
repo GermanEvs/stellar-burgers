@@ -7,10 +7,14 @@ import { fetchIngredients } from '../../services/slices/ingredients/slice';
 import { getIngredientsLoading } from '../../services/slices/ingredients/selectors';
 
 // Импорты для пользователя
-import { checkUserAuth } from '../../services/slices/user/slice';
+import {
+  checkUserAuth,
+  clearUserError
+} from '../../services/slices/user/slice';
 import {
   isAuthenticated,
-  isAuthChecked as isAuthCheckedSelector
+  isAuthChecked as isAuthCheckedSelector,
+  getUser
 } from '../../services/slices/user/selectors';
 
 // Импорты для очистки
@@ -42,6 +46,7 @@ import {
 
 import '../../index.css';
 import styles from './app.module.css';
+import { getCookie } from '../../utils/cookie';
 
 const App: FC = () => {
   const dispatch = useDispatch();
@@ -52,17 +57,40 @@ const App: FC = () => {
   const background = location.state?.background;
   const isAuth = useSelector(isAuthenticated);
   const ingredientsLoading = useSelector(getIngredientsLoading);
-  const isAuthChecked = useSelector(isAuthCheckedSelector); // Добавлено!
+  const isAuthChecked = useSelector(isAuthCheckedSelector);
+  const user = useSelector(getUser);
+
+  // Отладочная информация
+  useEffect(() => {
+    console.log('App state:', {
+      isAuth,
+      isAuthChecked,
+      ingredientsLoading,
+      user,
+      hasToken: !!getCookie('accessToken'),
+      currentPath: location.pathname
+    });
+  }, [isAuth, isAuthChecked, ingredientsLoading, user, location.pathname]);
 
   // ЗАГРУЖАЕМ ИНГРЕДИЕНТЫ ОДИН РАЗ ПРИ ЗАГРУЗКЕ ПРИЛОЖЕНИЯ
+  // eslint-disable-next-line arrow-body-style
   useEffect(() => {
     dispatch(fetchIngredients());
   }, [dispatch]);
 
-  // Проверяем авторизацию
+  // Проверяем авторизацию при загрузке
+  // eslint-disable-next-line arrow-body-style
   useEffect(() => {
     dispatch(checkUserAuth());
   }, [dispatch]);
+
+  // Очищаем ошибки при смене роута
+  // eslint-disable-next-line arrow-body-style
+  useEffect(() => {
+    return () => {
+      dispatch(clearUserError());
+    };
+  }, [dispatch, location.pathname]);
 
   const handleModalClose = () => {
     navigate(-1);
@@ -79,7 +107,7 @@ const App: FC = () => {
       <AppHeader />
 
       {/* Показываем прелоадер пока грузятся ингредиенты ИЛИ проверяется авторизация */}
-      {ingredientsLoading || !isAuthChecked ? ( // Изменено!
+      {ingredientsLoading || !isAuthChecked ? (
         <div className={styles.preloaderContainer}>
           <Preloader />
         </div>

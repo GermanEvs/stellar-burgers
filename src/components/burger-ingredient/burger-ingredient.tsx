@@ -7,7 +7,7 @@ import { addBun, addIngredient } from '../../services/slices/constructor/slice';
 import { getIngredientCount } from '../../services/slices/constructor/selectors';
 
 export const BurgerIngredient: FC<TBurgerIngredientProps> = memo(
-  ({ ingredient, count }) => {
+  ({ ingredient }) => {
     const dispatch = useDispatch();
     const location = useLocation();
 
@@ -24,7 +24,7 @@ export const BurgerIngredient: FC<TBurgerIngredientProps> = memo(
     return (
       <BurgerIngredientUI
         ingredient={ingredient}
-        count={currentCount}
+        count={currentCount > 0 ? currentCount : undefined}
         locationState={{ background: location }}
         handleAdd={handleAdd}
       />

@@ -18,9 +18,38 @@ const initialState: TOrderState = {
 
 export const createOrder = createAsyncThunk(
   'order/create',
-  async (ingredientsIds: string[]) => {
-    const response = await orderBurgerApi(ingredientsIds);
-    return response.order;
+  async (ingredientsIds: string[], { rejectWithValue }) => {
+    console.log('createOrder thunk STARTED with ingredients:', ingredientsIds);
+
+    // УБИРАЕМ таймаут - он мешает диагностике
+    try {
+      console.log('Calling orderBurgerApi...');
+      const startTime = Date.now();
+
+      // Просто вызываем API без таймаута
+      const response = await orderBurgerApi(ingredientsIds);
+
+      const endTime = Date.now();
+      console.log(
+        'orderBurgerApi SUCCESS. Time taken:',
+        endTime - startTime,
+        'ms'
+      );
+      console.log('orderBurgerApi response:', response);
+
+      if (!response || !response.success) {
+        throw new Error('Неверный ответ от сервера');
+      }
+
+      return response.order;
+    } catch (error: any) {
+      console.log('orderBurgerApi ERROR DETAILS:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      });
+      return rejectWithValue(error.message || 'Ошибка создания заказа');
+    }
   }
 );
 
@@ -37,6 +66,7 @@ const orderSlice = createSlice({
   initialState,
   reducers: {
     clearOrder: (state) => {
+      console.log('order/slice: clearOrder reducer called');
       state.orderModalData = null;
       state.currentOrder = null;
       state.error = null;
@@ -49,16 +79,19 @@ const orderSlice = createSlice({
     builder
       // Создание заказа
       .addCase(createOrder.pending, (state) => {
+        console.log('order/slice: createOrder.pending');
         state.orderRequest = true;
         state.error = null;
       })
       .addCase(createOrder.fulfilled, (state, action) => {
+        console.log('order/slice: createOrder.fulfilled');
         state.orderRequest = false;
         state.orderModalData = action.payload;
       })
       .addCase(createOrder.rejected, (state, action) => {
+        console.log('order/slice: createOrder.rejected', action.error);
         state.orderRequest = false;
-        state.error = action.error.message || 'Ошибка создания заказа';
+        state.error = (action.payload as string) || 'Ошибка создания заказа';
       })
       // Получение заказа по номеру
       .addCase(fetchOrderByNumber.pending, (state) => {
