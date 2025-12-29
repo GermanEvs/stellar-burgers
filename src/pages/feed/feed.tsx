@@ -1,10 +1,11 @@
 import { Preloader } from '@ui';
 import { FeedUI } from '@ui-pages';
-import { FC, useEffect } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from '../../services/store';
 import {
   wsConnectionStart,
-  wsConnectionClosed
+  wsConnectionClosed,
+  fetchFeeds // Убедитесь, что он импортируется
 } from '../../services/slices/feed/slice';
 import {
   getFeedOrders,
@@ -17,6 +18,7 @@ export const Feed: FC = () => {
   const orders = useSelector(getFeedOrders);
   const loading = useSelector(getFeedLoading);
   const wsConnected = useSelector(isWsConnected);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     console.log('Feed: Starting WebSocket connection');
@@ -30,10 +32,32 @@ export const Feed: FC = () => {
     };
   }, [dispatch]);
 
+  // Функция для обновления ленты заказов
+  const handleGetFeeds = () => {
+    if (isRefreshing) return;
+
+    console.log('Обновление ленты заказов...');
+    setIsRefreshing(true);
+
+    // Вариант 1: REST запрос (рекомендую - соответствует ТЗ)
+    dispatch(fetchFeeds())
+      .unwrap()
+      .then(() => {
+        console.log('Лента заказов успешно обновлена');
+      })
+      .catch((error) => {
+        console.error('Ошибка при обновлении ленты:', error);
+      })
+      .finally(() => {
+        setIsRefreshing(false);
+      });
+  };
+
   console.log('Feed: State', {
     loading,
     wsConnected,
-    ordersCount: orders?.length || 0
+    ordersCount: orders?.length || 0,
+    isRefreshing
   });
 
   // Показываем прелоадер только при первой загрузке
@@ -46,12 +70,5 @@ export const Feed: FC = () => {
     );
   }
 
-  return (
-    <FeedUI
-      orders={orders}
-      handleGetFeeds={() => {
-        console.log('Manual refresh not needed with WebSocket');
-      }}
-    />
-  );
+  return <FeedUI orders={orders} handleGetFeeds={handleGetFeeds} />;
 };

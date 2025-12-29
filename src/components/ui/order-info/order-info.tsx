@@ -11,6 +11,19 @@ import { OrderStatus } from '@components';
 
 export const OrderInfoUI: FC<OrderInfoUIProps> = memo(({ orderInfo }) => (
   <div className={styles.wrap}>
+    {/* НОМЕР ЗАКАЗА - ЦЕНТРИРОВАННЫЙ */}
+    <div
+      className={`text text_type_digits-default pb-10`}
+      style={{
+        textAlign: 'center',
+        color: '#F2F2F3',
+        fontSize: '28px',
+        lineHeight: '1.2'
+      }}
+    >
+      #{orderInfo.number.toString().padStart(6, '0')}
+    </div>
+
     <h3 className={`text text_type_main-medium  pb-3 pt-10 ${styles.header}`}>
       {orderInfo.name}
     </h3>
