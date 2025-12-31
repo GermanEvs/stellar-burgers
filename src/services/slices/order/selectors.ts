@@ -12,3 +12,6 @@ export const getCurrentOrder = (state: RootState): TOrder | null =>
 
 export const getOrderError = (state: RootState): string | null =>
   state.order.error;
+
+export const getIsOrderConfirmed = (state: RootState): boolean =>
+  state.order.isOrderConfirmed;
