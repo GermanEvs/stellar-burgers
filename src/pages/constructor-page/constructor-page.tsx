@@ -1,19 +1,14 @@
 import { useSelector } from '../../services/store';
 import styles from './constructor-page.module.css';
-import { BurgerIngredients, BurgerConstructor } from '../../components';
+import { BurgerIngredients } from '../../components';
+import { BurgerConstructor } from '../../components';
 import { Preloader } from '../../components/ui';
-import { FC, useEffect } from 'react';
-import { useDispatch } from '../../services/store';
-import { fetchIngredients } from '../../services/slices/ingredients/slice';
+import { FC } from 'react';
 import { getIngredientsLoading } from '../../services/slices/ingredients/selectors';
 
 export const ConstructorPage: FC = () => {
-  const dispatch = useDispatch();
+  // Теперь ингредиенты загружаются в App.tsx
   const isIngredientsLoading = useSelector(getIngredientsLoading);
-
-  useEffect(() => {
-    dispatch(fetchIngredients());
-  }, [dispatch]);
 
   return (
     <>

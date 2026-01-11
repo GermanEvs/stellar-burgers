@@ -1,15 +1,20 @@
-import { FC, useMemo } from 'react';
+import { FC, useMemo, useEffect } from 'react'; // Добавляем useEffect
 import { TConstructorIngredient } from '@utils-types';
 import { BurgerConstructorUI } from '@ui';
 import { useDispatch, useSelector } from '../../services/store';
 import { getConstructorItems } from '../../services/slices/constructor/selectors';
 import {
   getOrderRequest,
-  getOrderModalData
+  getOrderModalData,
+  getIsOrderConfirmed // Импортируем новый селектор
 } from '../../services/slices/order/selectors';
 import { isAuthenticated } from '../../services/slices/user/selectors';
 import { clearConstructor } from '../../services/slices/constructor/slice';
-import { createOrder, clearOrder } from '../../services/slices/order/slice';
+import {
+  createOrder,
+  clearOrder,
+  resetOrderConfirmation
+} from '../../services/slices/order/slice'; // Добавляем resetOrderConfirmation
 import { useNavigate } from 'react-router-dom';
 
 export const BurgerConstructor: FC = () => {
@@ -19,7 +24,16 @@ export const BurgerConstructor: FC = () => {
   const constructorItems = useSelector(getConstructorItems);
   const orderRequest = useSelector(getOrderRequest);
   const orderModalData = useSelector(getOrderModalData);
+  const isOrderConfirmed = useSelector(getIsOrderConfirmed); // Используем новый селектор
   const isAuth = useSelector(isAuthenticated);
+
+  // Эффект для очистки конструктора при успешном подтверждении заказа
+  useEffect(() => {
+    if (isOrderConfirmed && orderModalData) {
+      console.log('Order successfully created, clearing constructor...');
+      dispatch(clearConstructor());
+    }
+  }, [isOrderConfirmed, orderModalData, dispatch]);
 
   const onOrderClick = () => {
     if (!constructorItems.bun || orderRequest) return;
@@ -39,8 +53,13 @@ export const BurgerConstructor: FC = () => {
   };
 
   const closeOrderModal = () => {
+    // Теперь конструктор очищается только через эффект выше,
+    // когда isOrderConfirmed = true
     dispatch(clearOrder());
-    dispatch(clearConstructor());
+    // Сбрасываем флаг подтверждения, если он был установлен
+    if (isOrderConfirmed) {
+      dispatch(resetOrderConfirmation());
+    }
   };
 
   const price = useMemo(

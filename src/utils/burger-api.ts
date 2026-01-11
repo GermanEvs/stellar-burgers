@@ -39,20 +39,49 @@ export const fetchWithRefresh = async <T>(
   url: RequestInfo,
   options: RequestInit
 ) => {
+  console.log('fetchWithRefresh: Starting request to', url);
+  const startTime = Date.now();
+
   try {
     const res = await fetch(url, options);
-    return await checkResponse<T>(res);
-  } catch (err) {
-    if ((err as { message: string }).message === 'jwt expired') {
-      const refreshData = await refreshToken();
-      if (options.headers) {
-        (options.headers as { [key: string]: string }).authorization =
-          refreshData.accessToken;
+    const data = await checkResponse<T>(res);
+    const endTime = Date.now();
+    console.log(
+      `fetchWithRefresh: Request SUCCESS in ${endTime - startTime}ms`
+    );
+    return data;
+  } catch (err: any) {
+    const endTime = Date.now();
+    console.log(
+      `fetchWithRefresh: Request FAILED in ${endTime - startTime}ms, error:`,
+      err.message
+    );
+
+    if (err.message === 'jwt expired') {
+      console.log('Token expired, refreshing...');
+      try {
+        const refreshStart = Date.now();
+        const refreshData = await refreshToken();
+        const refreshEnd = Date.now();
+        console.log(`Token refreshed in ${refreshEnd - refreshStart}ms`);
+
+        // Обновляем заголовки с новым токеном
+        const newOptions = {
+          ...options,
+          headers: {
+            ...options.headers,
+            authorization: refreshData.accessToken
+          } as HeadersInit
+        };
+
+        const res = await fetch(url, newOptions);
+        return await checkResponse<T>(res);
+      } catch (refreshError: any) {
+        console.error('Token refresh failed:', refreshError.message);
+        throw refreshError;
       }
-      const res = await fetch(url, options);
-      return await checkResponse<T>(res);
     } else {
-      return Promise.reject(err);
+      throw err;
     }
   }
 };
@@ -211,6 +240,9 @@ export const getUserApi = () =>
     headers: {
       authorization: getCookie('accessToken')
     } as HeadersInit
+  }).then((data) => {
+    if (data?.success) return data;
+    return Promise.reject(data);
   });
 
 export const updateUserApi = (user: Partial<TRegisterData>) =>
@@ -221,6 +253,9 @@ export const updateUserApi = (user: Partial<TRegisterData>) =>
       authorization: getCookie('accessToken')
     } as HeadersInit,
     body: JSON.stringify(user)
+  }).then((data) => {
+    if (data?.success) return data;
+    return Promise.reject(data);
   });
 
 export const logoutApi = () =>

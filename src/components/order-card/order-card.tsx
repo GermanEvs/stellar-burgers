@@ -1,20 +1,27 @@
 import { FC, memo, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useSelector } from '../../services/store';
 
 import { OrderCardProps } from './type';
 import { TIngredient } from '@utils-types';
 import { OrderCardUI } from '../ui/order-card';
+
+// Импортируйте селектор ингредиентов
+import { getIngredients } from '../../services/slices/ingredients/selectors';
 
 const maxIngredients = 6;
 
 export const OrderCard: FC<OrderCardProps> = memo(({ order }) => {
   const location = useLocation();
 
-  /** TODO: взять переменную из стора */
-  const ingredients: TIngredient[] = [];
+  // Получаем ингредиенты из стора
+  const ingredients = useSelector(getIngredients);
 
   const orderInfo = useMemo(() => {
-    if (!ingredients.length) return null;
+    if (!ingredients.length) {
+      console.log('OrderCard: No ingredients available for order', order._id);
+      return null;
+    }
 
     const ingredientsInfo = order.ingredients.reduce(
       (acc: TIngredient[], item: string) => {
@@ -45,13 +52,22 @@ export const OrderCard: FC<OrderCardProps> = memo(({ order }) => {
     };
   }, [order, ingredients]);
 
-  if (!orderInfo) return null;
+  if (!orderInfo) {
+    console.log('OrderCard: no orderInfo for order', order._id);
+    return <div style={{ display: 'none' }} />;
+  }
 
+  // Ключевое изменение: тип locationState
   return (
     <OrderCardUI
       orderInfo={orderInfo}
       maxIngredients={maxIngredients}
-      locationState={{ background: location }}
+      locationState={
+        {
+          background: location,
+          order: orderInfo // ДОБАВЛЯЕМ order
+        } as any
+      } // Используем as any или исправьте тип в type.ts
     />
   );
 });
