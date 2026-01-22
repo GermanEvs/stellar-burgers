@@ -49,8 +49,9 @@ describe('Burger Constructor', () => {
           cy.get('button').contains('Добавить').click();
         });
       
-      cy.get('main').should('contain', 'Краторная булка N-200i (верх)');
-      cy.get('main').should('contain', 'Краторная булка N-200i (низ)');
+      // Проверяем в конструкторе (правой части)
+      cy.get('section').eq(1).should('contain', 'Краторная булка N-200i (верх)');
+      cy.get('section').eq(1).should('contain', 'Краторная булка N-200i (низ)');
     });
 
     it('should add filling to constructor by clicking Add button', () => {
@@ -60,7 +61,8 @@ describe('Burger Constructor', () => {
           cy.get('button').contains('Добавить').click();
         });
       
-      cy.get('main').should('contain', 'Биокотлета из марсианской Магнолии');
+      // Проверяем в конструкторе (правой части)
+      cy.get('section').eq(1).should('contain', 'Биокотлета из марсианской Магнолии');
     });
 
     it('should enable order button when bun is added to constructor', () => {
@@ -99,17 +101,32 @@ describe('Burger Constructor', () => {
       
       cy.get('body').type('{esc}');
       
-      cy.url().should('eq', 'http://localhost:4000/');
+      cy.url().should('eq', Cypress.config().baseUrl + '/');
     });
 
     it('should close ingredient modal by clicking overlay', () => {
       cy.contains('Краторная булка N-200i').click();
       cy.location('pathname').should('include', '/ingredients');
       
-      // Упрощенный вариант - тоже используем Escape
-      cy.get('body').type('{esc}');
+      // Ищем оверлей по фиксированной позиции и размерам
+      cy.get('body').then(($body) => {
+        const overlay = $body.find('div').filter((_, el) => {
+          const style = window.getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          return style.position === 'fixed' && 
+                 rect.width > 0 && rect.height > 0 &&
+                 rect.top === 0 && rect.left === 0;
+        }).first();
+        
+        if (overlay.length > 0) {
+          cy.wrap(overlay).click({ force: true });
+        } else {
+          // Альтернатива: ищем по известным классам
+          cy.get('[class*="overlay"], [class*="modalOverlay"], [class*="backdrop"]').first().click({ force: true });
+        }
+      });
       
-      cy.url().should('eq', 'http://localhost:4000/');
+      cy.url().should('eq', Cypress.config().baseUrl + '/');
     });
   });
 
@@ -126,7 +143,10 @@ describe('Burger Constructor', () => {
     });
 
     it('should create order successfully when user is authenticated', () => {
-      // 1. Переопределяем интерцепт проверки пользователя
+      // 1. Перехватываем запрос ингредиентов (важно сделать это перед reload)
+      cy.intercept('GET', '**/api/ingredients', { fixture: 'ingredients.json' }).as('getIngredients');
+      
+      // 2. Переопределяем интерцепт проверки пользователя
       cy.intercept('GET', '**/api/auth/user', {
         statusCode: 200,
         body: {
@@ -135,7 +155,7 @@ describe('Burger Constructor', () => {
         }
       }).as('getUserAuth');
       
-      // 2. Устанавливаем токены
+      // 3. Устанавливаем токены
       cy.window().then((win) => {
         win.localStorage.setItem('accessToken', 'Bearer test-token-123');
         win.localStorage.setItem('refreshToken', 'test-refresh-token-123');
@@ -144,7 +164,7 @@ describe('Burger Constructor', () => {
       cy.setCookie('accessToken', 'Bearer test-token-123');
       cy.setCookie('refreshToken', 'test-refresh-token-123');
       
-      // 3. Мокаем создание заказа
+      // 4. Мокаем создание заказа
       cy.intercept('POST', '**/api/orders', {
         statusCode: 200,
         body: {
@@ -161,19 +181,19 @@ describe('Burger Constructor', () => {
         }
       }).as('createOrderMock');
       
-      // 4. Перезагружаем страницу
+      // 5. Перезагружаем страницу
       cy.reload();
       
-      // 5. Ждем загрузку ингредиентов
+      // 6. Ждем загрузку ингредиентов
       cy.wait('@getIngredients');
       
-      // 6. Даем время для проверки авторизации
+      // 7. Даем время для проверки авторизации
       cy.wait(1000);
       
-      // 7. Проверяем авторизацию
+      // 8. Проверяем авторизацию
       cy.get('body').should('not.contain', 'Войти');
       
-      // 8. Добавляем ингредиенты
+      // 9. Добавляем ингредиенты
       cy.contains('Краторная булка N-200i')
         .parents('li')
         .within(() => {
@@ -186,25 +206,40 @@ describe('Burger Constructor', () => {
           cy.get('button').contains('Добавить').click();
         });
       
-      // 9. Оформляем заказ
+      // 10. Проверяем, что ингредиенты добавлены в конструктор (правой части - section[1])
+      cy.get('section').eq(1).should('contain', 'Краторная булка N-200i (верх)');
+      cy.get('section').eq(1).should('contain', 'Краторная булка N-200i (низ)');
+      cy.get('section').eq(1).should('contain', 'Биокотлета из марсианской Магнолии');
+      
+      // 11. Оформляем заказ
       cy.get('button').contains('Оформить заказ').click();
       
-      // 10. Ждем создание заказа
+      // 12. Ждем создание заказа
       cy.wait('@createOrderMock', { timeout: 10000 }).then((interception) => {
         expect(interception.response?.statusCode).to.equal(200);
         expect(interception.response?.body.order.number).to.equal(12345);
       });
       
-      // 11. Проверяем модальное окно
+      // 13. Проверяем, что модальное окно открылось с верным номером заказа
       cy.get('#modals').should('exist');
       cy.contains('12345').should('be.visible');
       
-      // 12. Закрываем модальное окно
+      // 14. **ВАЖНО: Сначала ждем очистки конструктора, потом закрываем модальное окно**
+      // Ожидаем появления текста "Выберите булки" и "Выберите начинку" в конструкторе
+      cy.get('section').eq(1).should('contain', 'Выберите булки', { timeout: 10000 });
+      cy.get('section').eq(1).should('contain', 'Выберите начинку', { timeout: 10000 });
+      
+      // 15. Проверяем отсутствие ингредиентов в конструкторе (правой части)
+      cy.get('section').eq(1).should('not.contain', 'Краторная булка N-200i (верх)');
+      cy.get('section').eq(1).should('not.contain', 'Краторная булка N-200i (низ)');
+      cy.get('section').eq(1).should('not.contain', 'Биокотлета из марсианской Магнолии');
+      
+      // 16. **Теперь закрываем модальное окно**
       cy.get('body').type('{esc}');
       
-      // 13. Ждем и проверяем очистку
+      // 17. Проверяем, что модальное окно закрылось
       cy.wait(1000);
-      cy.contains('Выберите булки').should('exist');
+      cy.get('#modals').should('not.contain', '12345');
     });
 
     it('should show order modal when creating order - simplified test', () => {
